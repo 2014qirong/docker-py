@@ -1,6 +1,7 @@
 import os
 
-from .fnmatch import fnmatch
+from ..constants import IS_WINDOWS_PLATFORM
+from .fnmatch import fnmatchcase
 from .utils import create_archive
 
 
@@ -39,7 +40,7 @@ def exclude_paths(root, patterns, dockerfile=None):
         # If the Dockerfile is in a subdirectory that is excluded, get_paths
         # will not descend into it and the file will be skipped. This ensures
         # it doesn't happen.
-        set([dockerfile])
+        set([dockerfile.replace('/', os.path.sep)])
         if os.path.exists(os.path.join(root, dockerfile)) else set()
     )
 
@@ -54,9 +55,16 @@ def should_include(path, exclude_patterns, include_patterns):
     3. Returns true if the path matches an exclusion pattern and matches an
        inclusion pattern
     """
+    print('should_include: %s' % path)
     for pattern in exclude_patterns:
+        print('for exclude pattern: %s' % pattern)
         if match_path(path, pattern):
+            print('match_path(path, pattern) = true')
             for pattern in include_patterns:
+                print('for include_pattern: %s' % pattern)
+                print('match_path(path, pattern) = %s' % match_path(
+                    path, pattern
+                ))
                 if match_path(path, pattern):
                     return True
             return False
@@ -88,9 +96,11 @@ def should_check_directory(directory_path, exclude_patterns, include_patterns):
         pattern for pattern in map(normalize_path, include_patterns)
         if (pattern + '/').startswith(path_with_slash)
     ]
+    print('possible_child_patterns = %s' % possible_child_patterns)
     directory_included = should_include(
         directory_path, exclude_patterns, include_patterns
     )
+    print('directory_included = %s' % directory_included)
     return directory_included or len(possible_child_patterns) > 0
 
 
@@ -126,13 +136,20 @@ def get_paths(root, exclude_patterns, include_patterns, has_exceptions=False):
 
 
 def match_path(path, pattern):
+    print('match_path:')
+    print('path = %s,' % path, 'pattern = %s' % pattern)
     pattern = pattern.rstrip('/' + os.path.sep)
     if pattern:
         pattern = os.path.relpath(pattern)
 
+    pattern_components = pattern.split(os.path.sep)
+    if len(pattern_components) == 1 and IS_WINDOWS_PLATFORM:
+        pattern_components = pattern.split('/')
+
     if '**' not in pattern:
-        pattern_components = pattern.split(os.path.sep)
         path_components = path.split(os.path.sep)[:len(pattern_components)]
     else:
         path_components = path.split(os.path.sep)
-    return fnmatch('/'.join(path_components), pattern)
+    print('path_components = %s' % path_components)
+    print('pattern_components = %s' % pattern_components)
+    return fnmatchcase('/'.join(path_components), '/'.join(pattern_components))

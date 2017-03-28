@@ -52,13 +52,10 @@ def fnmatchcase(name, pat):
     its arguments.
     """
 
-    try:
-        re_pat = _cache[pat]
-    except KeyError:
-        res = translate(pat)
-        if len(_cache) >= _MAXCACHE:
-            _cache.clear()
-        _cache[pat] = re_pat = re.compile(res)
+    res = translate(pat)
+    re_pat = re.compile(res, flags=(re.MULTILINE | re.DOTALL))
+    print('filename = %s' % name)
+    print('pattern = %s' % res)
     return re_pat.match(name) is not None
 
 
@@ -67,6 +64,7 @@ def translate(pat):
 
     There is no way to quote meta-characters.
     """
+    print('translate pattern: %s' % pat)
 
     recursive_mode = False
     i, n = 0, len(pat)
@@ -100,7 +98,8 @@ def translate(pat):
                     stuff = '\\' + stuff
                 res = '%s[%s]' % (res, stuff)
         elif recursive_mode and c == '/':
-            res = res + '/?'
+            res = res + re.escape(c) + '?'
         else:
             res = res + re.escape(c)
-    return res + '\Z(?ms)'
+    print('res = %s' % res)
+    return res + '\Z'
